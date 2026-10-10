@@ -1,0 +1,27 @@
+indicator("Support & Resistance Breakout", shorttitle="SR Breakout", overlay=true, max_labels_count=50)
+
+lookback = input.int(50, "Lookback Period", minval=2)
+buffer = input.float(0.0, "Breakout Buffer", step=0.01)
+showLevels = input.bool(true, "Show Support/Resistance Levels")
+supportColor = input.color(color.lime, "Support Color")
+resistanceColor = input.color(color.red, "Resistance Color")
+bullishBreakoutColor = input.color(color.new(color.green, 0), "Bullish Breakout Color")
+bearishBreakoutColor = input.color(color.new(color.red, 0), "Bearish Breakout Color")
+alertOnBreakout = input.bool(true, "Alert on Breakout")
+
+resistance = ta.highest(high, lookback)
+support = ta.lowest(low, lookback)
+
+resistanceLine = plot(showLevels ? resistance : na, title="Resistance", color=resistanceColor, linewidth=2, style=plot.style_line)
+supportLine = plot(showLevels ? support : na, title="Support", color=supportColor, linewidth=2, style=plot.style_line)
+
+fill(supportLine, resistanceLine, color=color.new(color.gray, 85), title="Range Zone")
+
+bullishBreakout = close > resistance + buffer and close[1] <= resistance + buffer
+bearishBreakout = close < support - buffer and close[1] >= support - buffer
+
+plotshape(bullishBreakout, title="Bullish Breakout", style=shape.triangleup, location=location.belowbar, color=bullishBreakoutColor, size=size.small)
+plotshape(bearishBreakout, title="Bearish Breakout", style=shape.triangledown, location=location.abovebar, color=bearishBreakoutColor, size=size.small)
+
+alertcondition(bullishBreakout, title="Bullish Breakout", message="Bullish breakout: price broke above resistance")
+alertcondition(bearishBreakout, title="Bearish Breakout", message="Bearish breakout: price broke below support")
