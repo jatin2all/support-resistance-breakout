@@ -1,0 +1,68 @@
+//@version=5
+strategy("Non-Repainting SR Breakout Strategy with Alerts", overlay=true, pyramiding=0, initial_capital=10000)
+
+// Inputs
+lookback = input.int(30, "Lookback Period", minval=5)
+buffer = input.float(0.0, "Breakout Buffer", step=0.01)
+fastEmaLen = input.int(10, "Fast EMA", minval=2)
+slowEmaLen = input.int(50, "Slow EMA", minval=5)
+volumeLen = input.int(20, "Volume SMA Length", minval=2)
+showLevels = input.bool(true, "Show S/R")
+showLabels = input.bool(true, "Show Labels")
+
+supportColor = input.color(color.lime, "Support Color")
+resistanceColor = input.color(color.red, "Resistance Color")
+longColor = input.color(color.new(color.green, 0), "Long Color")
+shortColor = input.color(color.new(color.red, 0), "Short Color")
+
+// Use last closed-range values
+resistanceLevel = ta.highest(high[1], lookback)
+supportLevel = ta.lowest(low[1], lookback)
+
+fastEma = ta.ema(close, fastEmaLen)
+slowEma = ta.ema(close, slowEmaLen)
+avgVol = ta.sma(volume, volumeLen)
+
+bullTrend = fastEma > slowEma
+bearTrend = fastEma < slowEma
+volConfirm = volume > avgVol
+
+bullBreak = barstate.isconfirmed and close > resistanceLevel + buffer and close[1] <= resistanceLevel + buffer and bullTrend and volConfirm
+bearBreak = barstate.isconfirmed and close < supportLevel - buffer and close[1] >= supportLevel - buffer and bearTrend and volConfirm
+
+// Plot support/resistance
+rLine = plot(showLevels ? resistanceLevel : na, "Resistance", color=resistanceColor, linewidth=2)
+sLine = plot(showLevels ? supportLevel : na, "Support", color=supportColor, linewidth=2)
+fill(sLine, rLine, color=color.new(color.gray, 85), title="Zone")
+
+// Entries
+if bullBreak
+    strategy.entry("Long", strategy.long)
+
+if bearBreak
+    strategy.entry("Short", strategy.short)
+
+// Optional exit logic
+strategy.close_all(when = (bullTrend == false and strategy.position_size > 0) or (bearTrend == false and strategy.position_size < 0))
+
+// Labels
+if showLabels and bullBreak
+    label.new(bar_index, low, "LONG", style=label.style_label_up, color=longColor, textcolor=color.white)
+
+if showLabels and bearBreak
+    label.new(bar_index, high, "SHORT", style=label.style_label_down, color=shortColor, textcolor=color.white)
+
+// Shapes
+plotshape(bullBreak, "Bullish Breakout", style=shape.triangleup, location=location.belowbar, color=longColor, size=size.small)
+plotshape(bearBreak, "Bearish Breakout", style=shape.triangledown, location=location.abovebar, color=shortColor, size=size.small)
+
+// Buy and Sell Alerts
+if bullBreak
+    alert("BUY SIGNAL: Price broke above resistance at " + str.tostring(resistanceLevel) + " | Fast EMA: " + str.tostring(fastEma, "#.##") + " | Slow EMA: " + str.tostring(slowEma, "#.##"), alert.freq_once_per_bar_close)
+
+if bearBreak
+    alert("SELL SIGNAL: Price broke below support at " + str.tostring(supportLevel) + " | Fast EMA: " + str.tostring(fastEma, "#.##") + " | Slow EMA: " + str.tostring(slowEma, "#.##"), alert.freq_once_per_bar_close)
+
+// Alert Conditions for external alerts
+alertcondition(bullBreak, title="BUY ALERT", message="BUY: Bullish breakout confirmed above resistance")
+alertcondition(bearBreak, title="SELL ALERT", message="SELL: Bearish breakout confirmed below support")
